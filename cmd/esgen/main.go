@@ -89,11 +89,12 @@ func (p *property) gen(seq int) interface{} {
 
 // config represents configuration for the processing.
 type config struct {
-	Action string
-	Index  string
-	Type   string
-	Num    int
-	Props  map[string]*property
+	Action        string
+	Index         string
+	Type          string
+	Num           int
+	Props         map[string]*property
+	MaxNumPerFile int `json:"max_num_per_file"`
 }
 
 // Flags
@@ -129,6 +130,9 @@ var mu sync.Mutex
 
 // LF
 var lf = []byte("\n")
+
+// Files
+var files = make([]*os.File, 0)
 
 func init() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
@@ -173,13 +177,6 @@ func main() {
 		panic(err)
 	}
 
-	f, err := os.Create(*outPath)
-	if err != nil {
-		panic(err)
-	}
-
-	defer f.Close()
-
 	ctxc := make(chan *context)
 
 	for i := 0; i < maxprocs; i++ {
@@ -191,9 +188,35 @@ func main() {
 		close(ctxc)
 
 		wg.Wait()
+
+		for _, f := range files {
+			f.Close()
+		}
 	}()
 
+	var f *os.File
+
+	var numPerFile int
+	var seqFile int
+
 	for seq := 1; seq <= conf.Num; seq++ {
+		numPerFile++
+
+		if seq == 1 || numPerFile > conf.MaxNumPerFile {
+			seqFile++
+
+			strSeq := strconv.Itoa(seqFile)
+
+			f, err = os.Create(*outPath + "." + strings.Repeat("0", 2-len(strSeq)) + strSeq)
+			if err != nil {
+				panic(err)
+			}
+
+			files = append(files, f)
+
+			numPerFile = 1
+		}
+
 		meta := make(map[string]string)
 
 		meta["_index"] = conf.Index
