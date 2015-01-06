@@ -17,6 +17,7 @@ type property struct {
 	Prefix string
 	Value  interface{}
 	Multi  bool
+	Max    float64
 }
 
 // gen generates and returns value of the property.
@@ -46,6 +47,10 @@ func (p *property) gen(seq int) interface{} {
 		}
 
 		return randNum(p.Length)
+	case "$rand_int":
+		return randInt(int(p.Max))
+	case "$rand_double":
+		return randDouble(p.Max)
 	case "$rand_kana":
 		if p.Multi {
 			s := make([]string, rand.Intn(5)+1)
@@ -58,6 +63,10 @@ func (p *property) gen(seq int) interface{} {
 		}
 
 		return randKana(p.Length / 2)
+	case "$rand_bool":
+		return randBool()
+	case "$rand_date":
+		return randDate()
 	default:
 		return p.Value
 	}
@@ -172,6 +181,16 @@ func randNum(l int) string {
 	return s
 }
 
+// randInt generates and returns a random integer value.
+func randInt(n int) int {
+	return rand.Intn(n)
+}
+
+// randDouble generates and returns a random double value.
+func randDouble(n float64) float64 {
+	return rand.Float64() * n
+}
+
 // randKana generates and returns a random kana.
 func randKana(l int) string {
 	var s string
@@ -181,4 +200,37 @@ func randKana(l int) string {
 	}
 
 	return s
+}
+
+// randBool generates and returns a random boolean value.
+func randBool() bool {
+	return rand.Intn(2) == 1
+}
+
+// randDate generates and returns a random date value.
+func randDate() string {
+	m := strconv.Itoa(rand.Intn(12) + 1)
+
+	if len(m) < 2 {
+		m = "0" + m
+	}
+
+	var maxD int
+
+	switch m {
+	case "01", "03", "05", "07", "08", "10", "12":
+		maxD = 31
+	case "02":
+		maxD = 28
+	default:
+		maxD = 30
+	}
+
+	d := strconv.Itoa(rand.Intn(maxD) + 1)
+
+	if len(d) < 2 {
+		d = "0" + d
+	}
+
+	return "2015" + m + d
 }
