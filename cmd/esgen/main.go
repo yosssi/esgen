@@ -3,11 +3,14 @@ package main
 import (
 	"encoding/json"
 	"flag"
+	"io"
 	"io/ioutil"
 	"math/rand"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 // property represents property for each field.
@@ -115,8 +118,48 @@ var (
 	kanaLen = len(kanas)
 )
 
+// The maximum number of CPUs
+var maxprocs int
+
+// Wait group
+var wg sync.WaitGroup
+
+// Mutex
+var mu sync.Mutex
+
+// LF
+var lf = []byte("\n")
+
 func init() {
+	runtime.GOMAXPROCS(runtime.NumCPU())
+
+	maxprocs = runtime.GOMAXPROCS(0)
+
 	flag.Parse()
+}
+
+type context struct {
+	w  io.Writer
+	bs [][]byte
+}
+
+func write(ctxc <-chan *context) {
+	for ctx := range ctxc {
+		mu.Lock()
+
+		for _, b := range ctx.bs {
+			if _, err := ctx.w.Write(b); err != nil {
+				mu.Unlock()
+				panic(err)
+			}
+
+			ctx.w.Write(lf)
+		}
+
+		mu.Unlock()
+	}
+
+	wg.Done()
 }
 
 func main() {
@@ -137,6 +180,19 @@ func main() {
 
 	defer f.Close()
 
+	ctxc := make(chan *context)
+
+	for i := 0; i < maxprocs; i++ {
+		wg.Add(1)
+		go write(ctxc)
+	}
+
+	defer func() {
+		close(ctxc)
+
+		wg.Wait()
+	}()
+
 	for seq := 1; seq <= conf.Num; seq++ {
 		meta := make(map[string]string)
 
@@ -148,27 +204,20 @@ func main() {
 			conf.Action: meta,
 		}
 
-		out, err := json.Marshal(action)
+		actionOut, err := json.Marshal(action)
 		if err != nil {
 			panic(err)
 		}
 
-		if _, err := f.Write(out); err != nil {
-			panic(err)
-		}
-
-		f.WriteString("\n")
-
-		out, err = json.Marshal(genProps(conf.Props, seq))
+		srcOut, err := json.Marshal(genProps(conf.Props, seq))
 		if err != nil {
 			panic(err)
 		}
 
-		if _, err := f.Write(out); err != nil {
-			panic(err)
+		ctxc <- &context{
+			w:  f,
+			bs: [][]byte{actionOut, srcOut},
 		}
-
-		f.WriteString("\n")
 	}
 }
 
