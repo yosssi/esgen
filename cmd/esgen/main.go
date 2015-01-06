@@ -12,16 +12,28 @@ import (
 
 // property represents property for each field.
 type property struct {
-	Type   string
-	Length int
-	Prefix string
-	Value  interface{}
-	Multi  bool
-	Max    float64
+	Type       string
+	Length     int
+	Prefix     string
+	Value      interface{}
+	Multi      bool
+	Max        float64
+	Properties map[string]*property
+	Num        int
 }
 
 // gen generates and returns value of the property.
 func (p *property) gen(seq int) interface{} {
+	if p.Properties != nil {
+		s := make([]interface{}, p.Num)
+
+		for i := range s {
+			s[i] = genProps(p.Properties, seq)
+		}
+
+		return s
+	}
+
 	switch p.Value {
 	case "$seq":
 		if p.Length == 0 {
@@ -147,17 +159,7 @@ func main() {
 
 		f.WriteString("\n")
 
-		src := make(map[string]interface{})
-
-		for k, p := range conf.Props {
-			if k == "_id" {
-				continue
-			}
-
-			src[k] = p.gen(seq)
-		}
-
-		out, err = json.Marshal(src)
+		out, err = json.Marshal(genProps(conf.Props, seq))
 		if err != nil {
 			panic(err)
 		}
@@ -168,6 +170,20 @@ func main() {
 
 		f.WriteString("\n")
 	}
+}
+
+func genProps(props map[string]*property, seq int) map[string]interface{} {
+	src := make(map[string]interface{})
+
+	for k, p := range props {
+		if k == "_id" {
+			continue
+		}
+
+		src[k] = p.gen(seq)
+	}
+
+	return src
 }
 
 // randNum generates and returns a random number.
