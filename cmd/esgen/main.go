@@ -23,6 +23,7 @@ type property struct {
 	Max        float64
 	Properties map[string]*property
 	Num        int
+	List       []interface{}
 }
 
 // gen generates and returns value of the property.
@@ -90,6 +91,8 @@ func (p *property) gen(seq int) interface{} {
 		return randBool()
 	case "$rand_date":
 		return randDate()
+	case "$rand_list":
+		return p.List[rand.Intn(len(p.List))]
 	default:
 		return p.Value
 	}
