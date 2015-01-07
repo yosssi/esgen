@@ -1,3 +1,3 @@
 # esgen
 
-## Elasticsearch Test Data Generator
+Elasticsearch Test Data Generator
