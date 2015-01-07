@@ -56,6 +56,8 @@ func (p *property) gen(seq int) interface{} {
 		}
 
 		return p.Prefix + strings.Repeat("0", p.Length-len(p.Prefix)-len(s)) + s
+	case "$seq_int":
+		return seq
 	case "$rand_num":
 		if p.Multi {
 			s := make([]string, rand.Intn(5)+1)
