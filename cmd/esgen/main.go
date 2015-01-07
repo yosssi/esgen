@@ -234,6 +234,10 @@ func main() {
 		meta["_type"] = conf.Type
 		meta["_id"] = conf.Props["_id"].gen(seq).(string)
 
+		if p, exist := conf.Props["_parent"]; exist {
+			meta["_parent"] = p.gen(seq).(string)
+		}
+
 		action := map[string]map[string]string{
 			conf.Action: meta,
 		}
@@ -259,7 +263,7 @@ func genProps(props map[string]*property, seq int) map[string]interface{} {
 	src := make(map[string]interface{})
 
 	for k, p := range props {
-		if k == "_id" {
+		if k == "_id" || k == "_parent" {
 			continue
 		}
 
