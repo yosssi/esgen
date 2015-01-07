@@ -47,7 +47,13 @@ func (p *property) gen(seq int) interface{} {
 			return p.Prefix + p.Value.(string)
 		}
 
-		s := strconv.Itoa(seq)
+		var s string
+
+		if p.Max == 0 {
+			s = strconv.Itoa(seq)
+		} else {
+			s = strconv.Itoa(seq%int(p.Max) + 1)
+		}
 
 		return p.Prefix + strings.Repeat("0", p.Length-len(p.Prefix)-len(s)) + s
 	case "$rand_num":
