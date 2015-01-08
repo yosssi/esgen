@@ -218,7 +218,7 @@ func main() {
 
 			strSeq := strconv.Itoa(seqFile)
 
-			f, err = os.Create(*outPath + "." + strings.Repeat("0", 2-len(strSeq)) + strSeq)
+			f, err = os.Create(*outPath + "." + strings.Repeat("0", 4-len(strSeq)) + strSeq)
 			if err != nil {
 				panic(err)
 			}
