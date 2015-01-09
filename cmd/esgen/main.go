@@ -322,7 +322,7 @@ func randBool() bool {
 
 // randDate generates and returns a random date value.
 func randDate() string {
-	m := strconv.Itoa(rand.Intn(12) + 1)
+	m := strconv.Itoa(rand.Intn(3) + 1)
 
 	if len(m) < 2 {
 		m = "0" + m
