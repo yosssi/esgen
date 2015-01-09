@@ -92,6 +92,16 @@ func (p *property) gen(seq int) interface{} {
 	case "$rand_date":
 		return randDate()
 	case "$rand_list":
+		if p.Multi {
+			s := make([]interface{}, rand.Intn(5)+1)
+
+			for i := range s {
+				s[i] = p.List[rand.Intn(len(p.List))]
+			}
+
+			return s
+		}
+
 		return p.List[rand.Intn(len(p.List))]
 	default:
 		return p.Value
