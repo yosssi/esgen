@@ -24,10 +24,11 @@ type property struct {
 	Properties map[string]*property
 	Num        int
 	List       []interface{}
+	Seed       string
 }
 
 // gen generates and returns value of the property.
-func (p *property) gen(seq int) interface{} {
+func (p *property) gen(seq int, seeds map[string]interface{}) interface{} {
 	if p.Properties != nil {
 		s := make([]interface{}, p.Num)
 
@@ -40,20 +41,20 @@ func (p *property) gen(seq int) interface{} {
 
 	switch p.Value {
 	case "$seq":
-		if p.Length == 0 {
-			if p.Prefix == "" {
-				return p.Value
-			}
-
-			return p.Prefix + p.Value.(string)
-		}
-
 		var s string
 
 		if p.Max == 0 {
 			s = strconv.Itoa(seq)
 		} else {
-			s = strconv.Itoa(seq%int(p.Max) + 1)
+			if seq%int(p.Max) == 0 {
+				s = strconv.Itoa(int(p.Max))
+			} else {
+				s = strconv.Itoa(seq % int(p.Max))
+			}
+		}
+
+		if p.Length == 0 {
+			return p.Prefix + s
 		}
 
 		return p.Prefix + strings.Repeat("0", p.Length-len(p.Prefix)-len(s)) + s
@@ -103,6 +104,12 @@ func (p *property) gen(seq int) interface{} {
 		}
 
 		return p.List[rand.Intn(len(p.List))]
+	case "$seed_list":
+		seedInt, err := strconv.Atoi(seeds[p.Seed].(string))
+		if err != nil {
+			panic(err)
+		}
+		return p.List[(seedInt-1)%len(p.List)]
 	default:
 		return p.Value
 	}
@@ -114,6 +121,7 @@ type config struct {
 	Index         string
 	Type          string
 	Num           int
+	Seeds         map[string]*property
 	Props         map[string]*property
 	MaxNumPerFile int `json:"max_num_per_file"`
 }
@@ -155,6 +163,9 @@ var lf = []byte("\n")
 // Files
 var files = make([]*os.File, 0)
 
+// Config
+var conf config
+
 func init() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
@@ -193,7 +204,6 @@ func main() {
 		panic(err)
 	}
 
-	var conf config
 	if err := json.Unmarshal(in, &conf); err != nil {
 		panic(err)
 	}
@@ -242,10 +252,10 @@ func main() {
 
 		meta["_index"] = conf.Index
 		meta["_type"] = conf.Type
-		meta["_id"] = conf.Props["_id"].gen(seq).(string)
+		meta["_id"] = conf.Props["_id"].gen(seq, nil).(string)
 
 		if p, exist := conf.Props["_parent"]; exist {
-			meta["_parent"] = p.gen(seq).(string)
+			meta["_parent"] = p.gen(seq, nil).(string)
 		}
 
 		action := map[string]map[string]string{
@@ -270,6 +280,13 @@ func main() {
 }
 
 func genProps(props map[string]*property, seq int) map[string]interface{} {
+	// Seeds
+	var seeds = make(map[string]interface{})
+
+	for k, p := range conf.Seeds {
+		seeds[k] = p.gen(seq, nil)
+	}
+
 	src := make(map[string]interface{})
 
 	for k, p := range props {
@@ -277,7 +294,7 @@ func genProps(props map[string]*property, seq int) map[string]interface{} {
 			continue
 		}
 
-		src[k] = p.gen(seq)
+		src[k] = p.gen(seq, seeds)
 	}
 
 	return src
